@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Card Inventory Intake</title>
+  <style>
+    body { font-family: sans-serif; background: #121212; color: #fff; padding: 30px; text-align: center; }
+    .box { background: #1e1e1e; max-width: 500px; margin: 0 auto; padding: 25px; border-radius: 8px; border: 1px solid #333; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; }
+    .full-width { grid-column: span 2; }
+    label { display: block; font-size: 12px; margin-top: 5px; color: #ccc; }
+    input, select { width: 100%; padding: 10px; margin-top: 3px; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff; box-sizing: border-box; }
+    input[readonly] { background: #1a1a1a; color: #00ffcc; border-color: #333; }
+    button { width: 100%; padding: 12px; margin-top: 15px; background: #00ffcc; color: #000; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; }
+    #status { margin-top: 15px; font-weight: bold; color: #ffcb05; }
+    .card-preview { margin-top: 15px; display: none; background: #2a2a2a; padding: 10px; border-radius: 6px; }
+    .card-preview img { width: 130px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+  <div class="box">
+    <h2>Card Quick-Intake</h2>
+
+    <div class="grid">
+      <!-- Image URL / Identifier / Collectr Input -->
+      <div class="full-width">
+        <label>Collectr Link, Image URL, or TCGdex ID:</label>
+        <input type="text" id="imageUrl" placeholder="e.g., https://getcollectr.com/product/... or sv04-058" onchange="autoFetchDetails(this.value)">
+      </div>
+
+      <!-- Auto-Fetched Metadata -->
+      <div>
+        <label>English Name:</label>
+        <input type="text" id="cardName" readonly placeholder="Auto-translated or via Server">
+      </div>
+      <div>
+        <label>Card Number:</label>
+        <input type="text" id="cardNumber" readonly placeholder="Auto-extracted">
+      </div>
+      <div>
+        <label>Pokemon Type:</label>
+        <input type="text" id="pokemonType" readonly placeholder="Auto-extracted">
+      </div>
+      <div>
+        <label>Rarity:</label>
+        <input type="text" id="rarity" readonly placeholder="Auto-extracted">
+      </div>
+
+      <!-- Manual Inventory Parameters -->
+      <div>
+        <label>Quantity:</label>
+        <input type="number" id="quantity" value="1" min="1">
+      </div>
+      <div>
+        <label>Condition:</label>
+        <select id="condition">
+          <option value="NM">Near Mint</option>
+          <option value="LP">Lightly Played</option>
+          <option value="MP">Moderately Played</option>
+          <option value="HP">Heavily Played</option>
+        </select>
+      </div>
+      <div>
+        <label>Bought Price ($):</label>
+        <input type="number" id="buyPrice" step="0.01" value="0.00">
+      </div>
+      <div>
+        <label>Selling Price ($):</label>
+        <input type="number" id="sellPrice" step="0.01" value="0.00">
+      </div>
+      <div class="full-width">
+        <label>Shelf Location:</label>
+        <input type="text" id="shelfLocation" placeholder="e.g., Binder A - Slot 12">
+      </div>
+    </div>
+
+    <button id="addBtn">Save to Database</button>
+
+    <p id="status"></p>
+
+    <div id="preview" class="card-preview">
+      <img id="prevImg" src="" alt="Card">
+      <h4 id="prevTitle" style="margin:8px 0 2px 0;"></h4>
+      <p id="prevMeta" style="font-size:12px; color:#aaa; margin:0;"></p>
+    </div>
+  </div>
+
+  <script>
+    const addBtn = document.getElementById('addBtn');
+    const status = document.getElementById('status');
+    const preview = document.getElementById('preview');
+    let currentCardId = '';
+
+    function extractId(val) {
+      // Bypass direct TCGdex lookup for full Collectr links or slug strings
+      if (val.includes('getcollectr.com') || val.includes('-jp-') || val.includes('pokemon-')) {
+        return '';
+      }
+
+      const match = val.match(/\/([^\/]+)\/([^\/]+)\/(high|low)\.(png|jpg|webp)$/i);
+      if (match) {
+        return `${match[1]}-${match[2]}`;
+      }
+      return val.split('/').pop().replace(/\.(png|jpg|webp)$/i, '');
+    }
+
+    async function autoFetchDetails(inputVal) {
+      const val = inputVal.trim();
+      if (!val) return;
+
+      currentCardId = extractId(val);
+
+      // If extractId returns empty (as with full Collectr URLs), delegate resolution to collectr_3.php
+      if (!currentCardId) {
+        status.innerText = "Collectr link detected. Click 'Save to Database' to parse via backend.";
+        return;
+      }
+
+      status.innerText = "Attempting to pull metadata...";
+
+      const isJapanese = /(-jp-|\/jp\/|japanese)/i.test(val);
+      const lang = isJapanese ? 'ja' : 'en';
+
+      try {
+        const res = await fetch(`https://api.tcgdex.net/v2/${lang}/cards/${currentCardId}`);
+        if (!res.ok) throw new Error("Card not found on TCGdex directly.");
+
+        const data = await res.json();
+
+        document.getElementById('cardName').value = data.name || '';
+        document.getElementById('cardNumber').value = data.localId || '';
+        document.getElementById('pokemonType').value = data.types ? data.types.join(', ') : '';
+        document.getElementById('rarity').value = data.rarity || 'Common';
+
+        document.getElementById('prevImg').src = data.image ? `${data.image}/high.png` : (val.startsWith('http') ? val : '');
+        document.getElementById('prevTitle').innerText = data.name;
+        document.getElementById('prevMeta').innerText = `ID: ${data.id} | Type: ${data.types ? data.types.join('/') : 'N/A'}`;
+        preview.style.display = "block";
+        status.innerText = "Metadata auto-filled.";
+      } catch (err) {
+        currentCardId = '';
+        status.innerText = "URL pasted. Click 'Save to Database' to process via backend parser.";
+      }
+    }
+
+    addBtn.addEventListener('click', async () => {
+      const inputVal = document.getElementById('imageUrl').value.trim();
+      if (!inputVal) {
+        status.innerText = "Please provide an Input Link / Card ID first.";
+        return;
+      }
+
+      addBtn.disabled = true;
+      status.innerText = "Saving to database...";
+
+      const formData = new FormData();
+      formData.append('id', currentCardId);
+      formData.append('url', inputVal);
+      formData.append('image_url', inputVal.startsWith('http') ? inputVal : '');
+      formData.append('name', document.getElementById('cardName').value);
+      formData.append('card_number', document.getElementById('cardNumber').value);
+      formData.append('pokemon_type', document.getElementById('pokemonType').value);
+      formData.append('rarity', document.getElementById('rarity').value);
+      formData.append('quantity', document.getElementById('quantity').value);
+      formData.append('card_condition', document.getElementById('condition').value);
+      formData.append('buy_price', document.getElementById('buyPrice').value);
+      formData.append('sell_price', document.getElementById('sellPrice').value);
+      formData.append('shelf_location', document.getElementById('shelfLocation').value);
+
+      try {
+        const res = await fetch('collectr_3.php', { 
+          method: 'POST', 
+          body: formData 
+        });
+        
+        const responseText = await res.text();
+        let result;
+        try {
+          result = JSON.parse(responseText);
+        } catch (e) {
+          console.error("Raw Server Response:", responseText);
+          status.innerText = "PHP Error Outputted HTML! Check Console (F12).";
+          addBtn.disabled = false;
+          return;
+        }
+
+        if (result.success) {
+          status.innerText = result.message || "Card added to inventory!";
+          if (result.data) {
+            document.getElementById('prevImg').src = result.data.image || '';
+            document.getElementById('prevTitle').innerText = result.data.name;
+            document.getElementById('prevMeta').innerText = `Number: #${result.data.number} | Qty: ${result.data.quantity}`;
+            preview.style.display = "block";
+          }
+          document.getElementById('imageUrl').value = '';
+          document.getElementById('cardName').value = '';
+          document.getElementById('cardNumber').value = '';
+          document.getElementById('pokemonType').value = '';
+          document.getElementById('rarity').value = '';
+          document.getElementById('shelfLocation').value = '';
+          currentCardId = '';
+        } else {
+          status.innerText = "Error: " + result.message;
+        }
+      } catch (err) {
+        status.innerText = "Request failed: " + err.message;
+      } finally {
+        addBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

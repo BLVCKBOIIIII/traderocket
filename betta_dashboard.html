@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BETTAlino - Minimal Dashboard</title>
+    <!-- Chart.js for the Stock Trend -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        /* Global & Background */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: #ffffff;
+            color: #111111;
+            min-height: 100vh;
+            display: flex;
+            padding: 0;
+        }
+
+        /* Layout */
+        .sidebar {
+            width: 280px;
+            display: flex;
+            flex-direction: column;
+            padding: 30px 20px;
+            flex-shrink: 0;
+            background: #f9f9f9;
+            border-right: 1px solid #eaeaea;
+        }
+
+        .main-wrapper {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: #ffffff;
+        }
+
+        .top-nav {
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            border-bottom: 1px solid #eaeaea;
+            background: #ffffff;
+        }
+
+        .dashboard-content {
+            display: grid;
+            grid-template-columns: 2fr 1.5fr;
+            gap: 25px;
+            overflow-y: auto;
+            padding: 30px;
+        }
+
+        /* Sidebar Styling */
+        .logo {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 40px;
+            color: #000;
+            line-height: 1.2;
+            letter-spacing: -0.5px;
+        }
+        
+        .logo span {
+            font-size: 0.65rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #666;
+            display: block;
+            margin-top: 4px;
+        }
+        
+        .nav-menu {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .nav-item {
+            padding: 12px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: #111;
+            color: #fff;
+        }
+
+        /* Top Nav Styling */
+        .nav-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .search-bar input {
+            background: #f4f4f4;
+            border: 1px solid transparent;
+            color: #111;
+            padding: 10px 20px;
+            border-radius: 30px;
+            outline: none;
+            width: 300px;
+            font-size: 0.9rem;
+            transition: 0.2s;
+        }
+        
+        .search-bar input:focus {
+            border: 1px solid #111;
+            background: #fff;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #111;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 0.8rem;
+        }
+
+        /* Widget Styling */
+        .widget {
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            background: #ffffff;
+            border: 1px solid #eaeaea;
+            border-radius: 12px;
+        }
+
+        .widget-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: #111;
+        }
+
+        /* Buttons */
+        .btn-minimal {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            color: #111;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: 0.2s;
+        }
+        
+        .btn-minimal:hover {
+            background: #111;
+            color: #fff;
+            border-color: #111;
+        }
+
+        /* Stock Overview Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+        .stat-card {
+            background: #f9f9f9;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid #eaeaea;
+        }
+        .stat-label { font-size: 0.75rem; color: #666; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px;}
+        .stat-value { font-size: 1.8rem; font-weight: 700; margin-top: 6px; color: #111; letter-spacing: -1px;}
+
+        /* Chart Area */
+        .chart-container {
+            height: 220px;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        /* Tables (Active Stocks) */
+        .table-container {
+            max-height: 280px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        
+        thead {
+            position: sticky;
+            top: 0;
+            background: #ffffff;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px 8px;
+            border-bottom: 1px solid #eaeaea;
+        }
+        th { color: #666; font-weight: 500; font-size: 0.8rem; }
+        
+        .status-badge {
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: inline-block;
+        }
+        .badge-dark { background: #111; color: #fff; }
+        .badge-light { background: #f4f4f4; color: #111; border: 1px solid #ddd; }
+        .badge-outline { background: transparent; color: #111; border: 1px solid #111; }
+
+        /* Calendar mock */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            text-align: center;
+            font-size: 0.8rem;
+        }
+        .cal-day { padding: 4px 0; color: #666; font-weight: 500; }
+        .cal-cell {
+            aspect-ratio: 1;
+            background: #fafafa;
+            border: 1px solid #eaeaea;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 4px;
+            position: relative;
+        }
+        .cal-cell span { position: absolute; top: 3px; right: 5px; font-weight: 500; font-size: 0.75rem; }
+        .event-container {
+            width: 90%;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            margin-top: 16px;
+        }
+        .event {
+            width: 100%;
+            height: 3px;
+            border-radius: 2px;
+        }
+        .event.black { background: #111; }
+        .event.dark-gray { background: #666; }
+        .event.light-gray { background: #ccc; }
+
+        /* Map & Tanks */
+        .grid-2-col {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 20px;
+        }
+        
+        .tank-row {
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            background: #fafafa; 
+            border: 1px solid #eaeaea;
+            padding: 10px; 
+            border-radius: 8px;
+        }
+        .strain-tag {
+            font-size: 0.75rem;
+            color: #666;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="logo">
+            BETTAlino
+            <span>(your farming companion)</span>
+        </div>
+        <ul class="nav-menu">
+            <li class="nav-item active">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M18 17l-5-5-4 4-4-4"/></svg>
+                Dashboard
+            </li>
+            <li class="nav-item">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                Stocks
+            </li>
+            <li class="nav-item">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                Calendar
+            </li>
+            <li class="nav-item">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                Finances
+            </li>
+            <li class="nav-item">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                Settings
+            </li>
+        </ul>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-wrapper">
+        
+        <!-- Top Nav -->
+        <nav class="top-nav">
+            <h2 class="nav-title">Overview</h2>
+            <div class="search-bar">
+                <input type="text" placeholder="Search strains, tanks, logs...">
+            </div>
+            <div class="user-profile">
+                <div class="avatar">MG</div>
+                <span>Gregorio, Marc Erbine E.</span>
+            </div>
+        </nav>
+
+        <!-- Dashboard Grid -->
+        <div class="dashboard-content">
+            
+            <!-- Left Column -->
+            <div style="display: flex; flex-direction: column; gap: 25px;">
+                
+                <!-- Stock Overview -->
+                <section class="widget">
+                    <div class="widget-title">Inventory Metrics</div>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">Adult Bettas</div>
+                            <div class="stat-value">218</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Juveniles</div>
+                            <div class="stat-value">540</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Fry Tanks</div>
+                            <div class="stat-value">32</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Breed Pairs</div>
+                            <div class="stat-value">14</div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="stockChart"></canvas>
+                    </div>
+                </section>
+
+                <!-- Active Stocks Table (Populated) -->
+                <section class="widget">
+                    <div class="widget-title">
+                        Active Stocks Inventory
+                        <button class="btn-minimal">Filter Strain</button>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Fish ID</th>
+                                    <th>Strain</th>
+                                    <th>Tank ID</th>
+                                    <th>Age</th>
+                                    <th>Sex</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>#BS-092</td>
+                                    <td>Black Samurai (Plakat)</td>
+                                    <td>A101-B501</td>
+                                    <td>18 wks</td>
+                                    <td>Male</td>
+                                    <td><span class="status-badge badge-dark">Breeding</span></td>
+                                </tr>
+                                <tr>
+                                    <td>#DE-104</td>
+                                    <td>Dumbo Ear (Plakat)</td>
+                                    <td>A101-B505</td>
+                                    <td>20 wks</td>
+                                    <td>Male</td>
+                                    <td><span class="status-badge badge-outline">For Sale</span></td>
+                                </tr>
+                                <tr>
+                                    <td>#MG-045</td>
+                                    <td>Mustard Gas (Halfmoon)</td>
+                                    <td>B202-T102</td>
+                                    <td>14 wks</td>
+                                    <td>Male</td>
+                                    <td><span class="status-badge badge-light">Grow-out</span></td>
+                                </tr>
+                                <tr>
+                                    <td>#BS-110</td>
+                                    <td>Black Samurai (Plakat)</td>
+                                    <td>A101-B502</td>
+                                    <td>16 wks</td>
+                                    <td>Female</td>
+                                    <td><span class="status-badge badge-dark">Breeding</span></td>
+                                </tr>
+                                <tr>
+                                    <td>#MG-088</td>
+                                    <td>Mustard Gas (Halfmoon)</td>
+                                    <td>B202-T105</td>
+                                    <td>22 wks</td>
+                                    <td>Male</td>
+                                    <td><span class="status-badge badge-outline">For Sale</span></td>
+                                </tr>
+                                <tr>
+                                    <td>#DE-212</td>
+                                    <td>Dumbo Ear (Plakat)</td>
+                                    <td>FRY-T12</td>
+                                    <td>8 wks</td>
+                                    <td>Unsexed</td>
+                                    <td><span class="status-badge badge-light">Nursery</span></td>
+                                </tr>
+                                <tr>
+                                    <td>#BS-133</td>
+                                    <td>Black Samurai (Plakat)</td>
+                                    <td>A101-B508</td>
+                                    <td>12 wks</td>
+                                    <td>Male</td>
+                                    <td><span class="status-badge badge-light">Grow-out</span></td>
+                                </tr>
+                                <tr>
+                                    <td>#MG-101</td>
+                                    <td>Mustard Gas (Halfmoon)</td>
+                                    <td>B202-T109</td>
+                                    <td>19 wks</td>
+                                    <td>Female</td>
+                                    <td><span class="status-badge badge-outline">For Sale</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Right Column -->
+            <div style="display: flex; flex-direction: column; gap: 25px;">
+                
+                <!-- Nursery Schedule -->
+                <section class="widget">
+                    <div class="widget-title">Nursery Schedule (Oct 2026)</div>
+                    <div class="calendar-grid">
+                        <div class="cal-day">Sun</div><div class="cal-day">Mon</div><div class="cal-day">Tue</div><div class="cal-day">Wed</div><div class="cal-day">Thu</div><div class="cal-day">Fri</div><div class="cal-day">Sat</div>
+                        
+                        <div class="cal-cell"><span>15</span></div>
+                        <div class="cal-cell"><span>16</span>
+                            <div class="event-container">
+                                <div class="event light-gray" title="Brine Shrimp Feeding"></div>
+                            </div>
+                        </div>
+                        <div class="cal-cell"><span>17</span>
+                            <div class="event-container">
+                                <div class="event dark-gray" title="Mustard Gas Spawn Check"></div>
+                                <div class="event light-gray"></div>
+                            </div>
+                        </div>
+                        <div class="cal-cell"><span>18</span>
+                            <div class="event-container">
+                                <div class="event dark-gray" title="50% Water Shift"></div>
+                            </div>
+                        </div>
+                        <div class="cal-cell"><span>19</span>
+                            <div class="event-container">
+                                <div class="event dark-gray"></div>
+                            </div>
+                        </div>
+                        <div class="cal-cell"><span>20</span></div>
+                        <div class="cal-cell"><span>21</span>
+                            <div class="event-container">
+                                <div class="event black" title="Jar Sorting - Black Samurai"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="cal-cell"><span>22</span></div>
+                        <div class="cal-cell"><span>23</span>
+                            <div class="event-container">
+                                <div class="event dark-gray"></div>
+                            </div>
+                        </div>
+                        <div class="cal-cell"><span>24</span>
+                            <div class="event-container">
+                                <div class="event dark-gray"></div>
+                                <div class="event light-gray"></div>
+                            </div>
+                        </div>
+                        <div class="cal-cell"><span>25</span></div>
+                        <div class="cal-cell"><span>26</span>
+                            <div class="event-container">
+                                <div class="event black" title="Pairing Dumbo Ear #DE-104"></div>
+                            </div>
+                        </div>
+                        <div class="cal-cell"><span>27</span></div>
+                        <div class="cal-cell"><span>28</span>
+                            <div class="event-container">
+                                <div class="event black" title="Full Tank Sanitization"></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="grid-2-col">
+                    
+                    <!-- B&W Tank Status with Strains -->
+                    <section class="widget">
+                        <div class="widget-title">Active Racks</div>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            
+                            <!-- Community/Grow-out Tank -->
+                            <div class="tank-row">
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <div style="width: 80px; height: 45px;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120" width="100%" height="100%">
+                                          <rect x="5" y="5" width="190" height="110" rx="4" fill="#fff" stroke="#111" stroke-width="3"/>
+                                          <rect x="8" y="25" width="184" height="87" rx="2" fill="#f4f4f4"/>
+                                          <path d="M 8 100 Q 50 92 100 102 T 192 100 L 192 112 L 8 112 Z" fill="#ccc"/>
+                                          <path d="M 160 100 Q 150 60 165 40 Q 170 60 165 100 Z" fill="#999"/>
+                                          <path d="M 170 100 Q 180 65 175 45 Q 185 70 175 100 Z" fill="#666"/>
+                                          <ellipse cx="70" cy="55" rx="10" ry="4" fill="#111"/>
+                                          <path d="M 80 55 L 90 48 L 88 62 Z" fill="#111"/>
+                                          <ellipse cx="120" cy="70" rx="9" ry="4" fill="#555"/>
+                                          <path d="M 129 70 L 138 64 L 136 76 Z" fill="#555"/>
+                                        </svg>
+                                    </div>
+                                    <span class="strain-tag">Mustard Gas (HM)</span>
+                                </div>
+                                <button class="btn-minimal">Inspect</button>
+                            </div>
+
+                            <!-- Jar Barrack -->
+                            <div class="tank-row">
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <div style="width: 80px; height: 45px;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120" width="100%" height="100%">
+                                          <g transform="translate(10, 10)">
+                                            <rect x="5" y="10" width="35" height="80" rx="3" fill="#fff" stroke="#111" stroke-width="2"/>
+                                            <rect x="7" y="25" width="31" height="63" fill="#f4f4f4"/>
+                                            <ellipse cx="22" cy="50" rx="6" ry="3" fill="#111"/>
+                                            
+                                            <rect x="50" y="10" width="35" height="80" rx="3" fill="#fff" stroke="#111" stroke-width="2"/>
+                                            <rect x="52" y="25" width="31" height="63" fill="#f4f4f4"/>
+                                            <ellipse cx="67" cy="55" rx="6" ry="3" fill="#555"/>
+                                            
+                                            <rect x="95" y="10" width="35" height="80" rx="3" fill="#fff" stroke="#111" stroke-width="2"/>
+                                            <rect x="97" y="25" width="31" height="63" fill="#f4f4f4"/>
+                                            <ellipse cx="112" cy="45" rx="6" ry="3" fill="#999"/>
+                                          </g>
+                                        </svg>
+                                    </div>
+                                    <span class="strain-tag">Black Samurai (PK)</span>
+                                </div>
+                                <button class="btn-minimal">Inspect</button>
+                            </div>
+
+                        </div>
+                    </section>
+
+                    <!-- Monochrome Farm Map -->
+                    <section class="widget">
+                        <div class="widget-title">Farm Map</div>
+                        <div style="background: #fafafa; border: 1px solid #eaeaea; border-radius: 8px; padding: 10px; display: flex; align-items: center; justify-content: center;">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" width="100%" height="100%">
+                              <!-- Map Land -->
+                              <rect x="10" y="10" width="200" height="185" rx="4" fill="#fcfcfc" stroke="#e0e0e0" stroke-width="1"/>
+                              
+                              <!-- Trees -->
+                              <circle cx="28" cy="25" r="8" fill="#e0e0e0"/>
+                              <circle cx="40" cy="20" r="10" fill="#d4d4d4"/>
+                              <circle cx="32" cy="32" r="7" fill="#c4c4c4"/>
+                              <circle cx="195" cy="180" r="9" fill="#e0e0e0"/>
+                              <circle cx="205" cy="190" r="11" fill="#d4d4d4"/>
+                              
+                              <!-- Main Buildings -->
+                              <rect x="20" y="95" width="25" height="35" fill="#f0f0f0" stroke="#111" stroke-width="1" rx="2"/>
+                              <rect x="20" y="135" width="25" height="18" fill="#f0f0f0" stroke="#111" stroke-width="1" rx="2"/>
+                              
+                              <!-- Tank Racks -->
+                              <g transform="translate(60, 20)">
+                                <!-- Col 1 (Black Samurai Section) -->
+                                <rect x="0" y="0" width="12" height="15" fill="#000" rx="1"/>
+                                <rect x="0" y="18" width="12" height="15" fill="#000" rx="1"/>
+                                <rect x="0" y="36" width="12" height="15" fill="#000" rx="1"/>
+                                <rect x="0" y="70" width="12" height="15" fill="#000" rx="1"/>
+                                <rect x="0" y="88" width="12" height="15" fill="#000" rx="1"/>
+                                <rect x="0" y="106" width="12" height="15" fill="#000" rx="1"/>
+                                <!-- Col 2 (Dumbo Ear Section) -->
+                                <rect x="16" y="0" width="12" height="15" fill="#888" rx="1"/>
+                                <rect x="16" y="18" width="12" height="15" fill="#000" rx="1"/>
+                                <rect x="16" y="36" width="12" height="15" fill="#888" rx="1"/>
+                                <rect x="16" y="70" width="12" height="15" fill="#000" rx="1"/>
+                                <rect x="16" y="88" width="12" height="15" fill="#555" rx="1"/>
+                                <rect x="16" y="106" width="12" height="15" fill="#555" rx="1"/>
+                                <!-- Col 3 (Mustard Gas Section) -->
+                                <rect x="36" y="0" width="12" height="15" fill="#ccc" rx="1"/>
+                                <rect x="36" y="18" width="12" height="15" fill="#ccc" rx="1"/>
+                                <rect x="36" y="36" width="12" height="15" fill="#888" rx="1"/>
+                                <rect x="36" y="70" width="12" height="15" fill="#ccc" rx="1"/>
+                                <rect x="36" y="88" width="12" height="15" fill="#ccc" rx="1"/>
+                                <rect x="36" y="106" width="12" height="15" fill="#ccc" rx="1"/>
+                                <!-- Col 4 -->
+                                <rect x="52" y="0" width="12" height="15" fill="#ccc" rx="1"/>
+                                <rect x="52" y="18" width="12" height="15" fill="#ccc" rx="1"/>
+                                <rect x="52" y="36" width="12" height="15" fill="#888" rx="1"/>
+                                <rect x="52" y="70" width="12" height="15" fill="#ccc" rx="1"/>
+                                <rect x="52" y="88" width="12" height="15" fill="#ccc" rx="1"/>
+                                <rect x="52" y="106" width="12" height="15" fill="#ccc" rx="1"/>
+                              </g>
+                              
+                              <!-- Hatchery -->
+                              <rect x="110" y="150" width="30" height="20" fill="#fff" stroke="#111" stroke-width="1.5" rx="2"/>
+
+                              <!-- Legend -->
+                              <g transform="translate(225, 20)">
+                                <rect x="0" y="0" width="12" height="12" rx="2" fill="#000"/>
+                                <text x="18" y="10" font-family="Inter, sans-serif" font-weight="500" font-size="11" fill="#111">Critical</text>
+                                
+                                <rect x="0" y="22" width="12" height="12" rx="2" fill="#555"/>
+                                <text x="18" y="32" font-family="Inter, sans-serif" font-weight="500" font-size="11" fill="#111">Feeding</text>
+                                
+                                <rect x="0" y="44" width="12" height="12" rx="2" fill="#888"/>
+                                <text x="18" y="54" font-family="Inter, sans-serif" font-weight="500" font-size="11" fill="#111">Water Shift</text>
+                                
+                                <rect x="0" y="66" width="12" height="12" rx="2" fill="#ccc"/>
+                                <text x="18" y="76" font-family="Inter, sans-serif" font-weight="500" font-size="11" fill="#111">Cleaning</text>
+                              </g>
+                            </svg>
+                        </div>
+                    </section>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Chart Initialization -->
+    <script>
+        const ctx = document.getElementById('stockChart').getContext('2d');
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
+                datasets: [
+                    {
+                        label: 'Black Samurai (Plakat)',
+                        data: [20, 35, 45, 60, 80, 95, 110, 130, 160, 190],
+                        borderColor: '#111111',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        pointBackgroundColor: '#111'
+                    },
+                    {
+                        label: 'Dumbo Ear (Plakat)',
+                        data: [15, 20, 35, 40, 55, 70, 85, 90, 115, 140],
+                        borderColor: '#666666',
+                        borderWidth: 2,
+                        borderDash: [4, 4],
+                        tension: 0.1,
+                        pointBackgroundColor: '#666'
+                    },
+                    {
+                        label: 'Mustard Gas (Halfmoon)',
+                        data: [10, 15, 25, 30, 40, 50, 65, 75, 90, 110],
+                        borderColor: '#cccccc',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        pointBackgroundColor: '#ccc'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { 
+                        display: true,
+                        position: 'top',
+                        align: 'end',
+                        labels: {
+                            boxWidth: 12,
+                            font: { family: 'Inter', size: 11 }
+                        }
+                    }
+                },
+                scales: {
+                    y: { 
+                        beginAtZero: true, 
+                        grid: { color: '#eaeaea' },
+                        ticks: { color: '#666', font: {family: 'Inter'} }
+                    },
+                    x: { 
+                        grid: { display: false },
+                        ticks: { color: '#666', font: {family: 'Inter'} }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
